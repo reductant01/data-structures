@@ -10,9 +10,11 @@ enum directions { N, NE, E, SE, S, SW, W, NW };
 Offsets moves[8];
 class Matrix {
 private:
-	bool CheckNonZero();
+	bool CheckAllNonZero();
 public:
-	Matrix(int row, int col);
+	Matrix(int rows, int ccol):rows(rows) {
+		Term = new int[rows * cols];
+	}
 	int GetData();
 	void MoveRandom();
 	int Display();
@@ -22,12 +24,17 @@ private:
 	//int Term[rows][cols];
 	int* Term;//the add 2.6ress of a[i][j] = 0 + i * cols + j => Fig2.6
 };
+bool Matrix::CheckAllNonZero() {
 
+}
+int Matrix::GetData() {
 
+}
 void Matrix::MoveRandom() {
+	const int N = 8;
 	srand(time(NULL));
 
-	moves[N].a = -1;	moves[N].b = 0;
+	moves[0].a = -1;	moves[0].b = 0;
 	moves[1].a = -1;	moves[1].b = 1;
 	moves[2].a = 0;		moves[2].b = 1;
 	moves[3].a = 1;		moves[3].b = 1;
@@ -35,11 +42,15 @@ void Matrix::MoveRandom() {
 	moves[5].a = 1;		moves[5].b = -1;
 	moves[6].a = 0;		moves[6].b = -1;
 	moves[7].a = -1;	moves[7].b = -1;
-	
+	int x = rand() % N;
+	int y = rand() % N;
+
+	Term[x * cols + j] = 1;
+	// 난수 생성 0 ~ 7 => d라는 변수 저장
 }
 
 int Matrix::Display() {
-	
+
 }
 
 int main()
