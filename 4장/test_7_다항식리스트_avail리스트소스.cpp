@@ -1,400 +1,386 @@
 /*
-* 단계7 : 다항식 연결리스트: Available Linked List
-* circular list를 사용한 version, available list를 사용한 구현
-* template 버전 구현 
-*/
+ * 단계7 : 다항식 연결리스트: Available Linked List
+ * Circular list를 사용한 version, available list를 사용한 구현
+ * Template 버전 구현 
+ */
 
 #include <iostream>
 #include <time.h>
 #include <cstdlib>
 using namespace std;
 
+// Forward declarations
 template <class Type> class CircularList;
 template <class Type> class CircularListIterator;
 
-template<class T> class Term {
+// ------------- Term 클래스 -------------
+template <class T>
+class Term {
 public:
-	//All members of Term are public by default
-	T coef; //coefficient
-	int exp; //exponent
-	Term() { coef = 0; exp = 0; }
-	Term(T c, T e) :coef(c), exp(e) { }
+    // All members of Term are public by default
+    double coef; // coefficient
+    int exp;     // exponent
+    Term() : coef(0), exp(0) {}
+    Term(double c, int e) : coef(c), exp(e) {}
 
-	void NewTerm(float coef, int exp) {
-		this->coef = coef; this->exp = exp;
-	}
-	template <class T>
-	friend ostream& operator<<(ostream& os, Term<T>& e);
+    void NewTerm(double coef, int exp) {
+        this->coef = coef;
+        this->exp = exp;
+    }
+
+    // Friend function for operator<<
+    template <class U>
+    friend ostream& operator<<(ostream& os, const Term<U>& e);
 };
 
-template<class T>
-ostream& operator<<(ostream& os, Term<T>& e)
+// operator<< 구현
+template <class T>
+ostream& operator<<(ostream& os, const Term<T>& e)
 {
-	os << e.coef << "X**" << e.exp;
-	return os;
+    if (e.coef == 0) return os; // 계수가 0이면 출력하지 않음
+    if (e.exp == 0){
+        os << e.coef;
+    }
+    else{
+        os << e.coef << "X^" << e.exp;
+    }
+    return os;
 }
 
+// ------------- ListNode 클래스 -------------
 template <class Type>
 class ListNode {
-	friend class CircularList<Type>;
-	friend class CircularListIterator<Type>;
+    friend class CircularList<Type>;
+    friend class CircularListIterator<Type>;
 private:
-	Type data;
-	ListNode<Type>* link;
+    Type data;
+    ListNode<Type>* link;
 public:
-	ListNode(Type);
-	ListNode();
-	template <class Type>
-	friend ostream& operator<<(ostream&, ListNode<Type>&);
+    ListNode(Type);
+    ListNode();
+    template <class T>
+    friend ostream& operator<<(ostream&, const ListNode<T>&);
 };
-template <class Type>
-ostream& operator<<(ostream& os, ListNode<Type>& ln) {
-	os << ln.data
-		return os;;
-}
+
+// ListNode 생성자 구현
 template <class Type>
 ListNode<Type>::ListNode(Type Default)
 {
-	data = Default;
-	link = 0;
+    data = Default;
+    link = nullptr;
 }
+
 template <class Type>
 ListNode<Type>::ListNode()
 {
-	data = *new Type;
-	link = 0;
+    data = Type(); // 기본 생성자 호출
+    link = nullptr;
 }
 
+// ListNode operator<< 구현
+template <class Type>
+ostream& operator<<(ostream& os, const ListNode<Type>& ln) {
+    os << ln.data;
+    return os;
+}
+
+// ------------- CircularList 클래스 -------------
 template <class Type>
 class CircularList {
-	friend class CircularListIterator<Type>;
+    friend class CircularListIterator<Type>;
 public:
-	CircularList() { last = new ListNode<Type>; last->link = last; };
-	CircularList(const CircularList&);
-	~CircularList();
-	void Attach(Type);
-	ListNode<Type>* GetNode();
-	void RetNode(ListNode<Type>*);
-	void Erase();
-	template <class Type>
-	friend ostream& operator<<(ostream& os, CircularList<Type>& cl);
+    CircularList() { 
+        first = GetNode();    // 더미 노드 생성
+        first->link = first;  // 자기 자신을 가리키도록 설정
+        last = first;         // 초기에는 last도 더미 노드를 가리킴
+    }
+
+    CircularList(const CircularList<Type>& l) {
+        if (l.first == l.last) { // 빈 리스트
+            first = GetNode();
+            first->link = first;
+            last = first;
+            return;
+        }
+        // 복사할 리스트가 비어있지 않은 경우
+        first = GetNode();    // 새로운 더미 노드 생성
+        first->link = first;
+        last = first;
+        ListNode<Type>* current = l.first->link; // 첫 번째 실제 노드
+        while (current != l.first) {
+            Attach(current->data);
+            current = current->link;
+        }
+    }
+
+    ~CircularList() {
+        Erase();
+        RetNode(first);
+    }
+
+    void Attach(const Type& k) {
+        ListNode<Type>* newnode = GetNode();
+        newnode->data = k;
+        newnode->link = first->link; // 새 노드의 링크는 더미 노드 다음
+        first->link = newnode;       // 더미 노드의 링크를 새 노드로 설정
+        last = newnode;              // last를 새 노드로 업데이트
+    }
+
+    ListNode<Type>* GetNode() {
+        if (av != nullptr) { // available list에 노드가 있으면
+            ListNode<Type>* temp = av;
+            av = av->link;
+            return temp;
+        }
+        else { // 없으면 새 노드 생성
+            return new ListNode<Type>();
+        }
+    }
+
+    void RetNode(ListNode<Type>* x) { // 노드 반환
+        x->link = av;
+        av = x;
+    }
+
+    void Erase() { // 모든 노드 삭제 (available list로 반환)
+        if (first == last) return; // 빈 리스트
+        ListNode<Type>* current = first->link;
+        while (current != first) {
+            ListNode<Type>* temp = current;
+            current = current->link;
+            RetNode(temp);
+        }
+        first->link = first; // 리스트를 비우고 마지막 노드는 더미 노드를 가리키도록 설정
+        last = first;        // last를 더미 노드로 재설정
+    }
+
+    // Friend operator<< 구현
+    template <class T>
+    friend ostream& operator<<(ostream& os, const CircularList<T>& cl);
+
 private:
-	ListNode<Type>* last;
-	static ListNode<Type>* av;
+    ListNode<Type>* first;  // 더미 노드를 가리키는 포인터
+    ListNode<Type>* last;   // 마지막 노드를 가리키는 포인터
+    static ListNode<Type>* av; // available list (static)
 };
 
+// static 변수 초기화
 template <class Type>
-ListNode<Type>* CircularList<Type>::av = 0;//static 사용시 초기화 방법
-//ListNode<Term> CircularList<Term>::av = 0;//오류 발생
+ListNode<Type>* CircularList<Type>::av = nullptr;
 
+// operator<< 구현
+template <class Type>
+ostream& operator<<(ostream& os, const CircularList<Type>& l)
+{
+    os << "원형 리스트 출력: ";
+    CircularListIterator<Type> li(l);
+    if (!li.NotNull()) { // 빈 리스트
+        os << "리스트가 비어 있습니다.";
+        return os;
+    }
+    Type* firstTerm = li.First();
+    if (firstTerm != nullptr) {
+        os << *firstTerm;
+        Type* term;
+        while ((term = li.Next()) != nullptr) {
+            os << " + " << *term;
+        }
+    }
+    os << endl;
+    return os;
+}
+
+// ------------- CircularListIterator 클래스 -------------
 template <class Type>
 class CircularListIterator {
 public:
-	CircularListIterator(const CircularList<Type>& l) : list(l) { current = l.last->link; }
-	Type* Next();
-	Type* First();
-	bool NotNull();
-	bool NextNotNull();
+    CircularListIterator(const CircularList<Type>& l) : list(l), current(l.first->link), started(false) {}
+
+    Type* First() {
+        if (list.first == list.last) { // 빈 리스트
+            return nullptr;
+        }
+        current = list.first->link;
+        started = true;
+        return &current->data;
+    }
+
+    Type* Next() {
+        if (!started) return nullptr;
+        current = current->link;
+        if (current == list.first) { // 원형 리스트의 끝
+            return nullptr;
+        }
+        return &current->data;
+    }
+
+    bool NotNull() const {
+        return list.first != list.last;
+    }
+
+    bool NextNotNull() const {
+        return current->link != list.first;
+    }
+
 private:
-	const CircularList<Type>& list;
-	ListNode<Type>* current;
+    const CircularList<Type>& list;
+    ListNode<Type>* current;
+    bool started;
 };
 
-template <class Type>
-Type* CircularListIterator<Type>::First() {
-	if (current->link != list.last->link) {
-		current = current->link;
-		return &current->data;
-	}
-	else return 0;
-}
-
-template <class Type>
-Type* CircularListIterator<Type>::Next() {
-	current = current->link;
-	if (current != list.last->link) return &current->data;
-	else return 0;
-}
-
-template <class Type>
-bool CircularListIterator<Type>::NotNull()
-{
-	//if (current == nullptr)
-	//	return false;
-	if (current->link != list.last->link) return true;
-	else return false;
-}
-
-template <class Type>
-bool CircularListIterator<Type>::NextNotNull()
-{
-	if (current != list.last->link) return true;
-	else return false;
-}
-
-
-template <class Type>
-CircularList<Type>::CircularList(const CircularList<Type>& l)
-{
-	if (l.last->link == l.last) { last = new ListNode<Type>; return; }
-	ListNode<Type>* first = l.last->link;
-
-	ListNode<Type>* p = new ListNode<Type>;//head node
-	p->link = p;
-	last = p;
-	for (ListNode<Type>* current = first->link; current != first; current = current->link)
-	{
-		ListNode<Tye>* temp = new ListNode<Type>(current->data);
-		p->link = temp; p = temp;
-	}
-	p->link = last;
-	last = p;
-}
-
-template <class Type>
-CircularList<Type>::~CircularList()
-{
-	if (last)
-	{
-		ListNode<Type>* tmp = last->link;
-		last->link = av;
-		av = tmp;
-	}
-}
-template <class Type>
-ostream& operator<<(ostream& os, CircularList<Type>& l)
-{
-	cout << "원형 리스트 출력  " << endl;
-	CircularListIterator<Type> li(l);
-	if (!li.NotNull()) return os;
-	os << *li.First();
-	while (li.NotNull())
-		os << " + " << *li.Next();
-	os << endl;
-	return os;
-}
-
-template <class Type>
-void CircularList<Type>::Attach(Type k)
-{
-	ListNode<Type>* p = last;
-	ListNode<Type>* newnode = new ListNode<Type>(k);
-	if (p->link == last) {
-		p->link = newnode;
-		newnode->link = last;
-		last = newnode;
-	}
-	else {
-		newnode->link = last->link;
-		last->link = newnode;
-		last = newnode;
-	}
-}
-template <class Type>
-ListNode<Type>* CircularList<Type>::GetNode()
-{ //provide a node for use
-	ListNode<Type>* x;
-	if (av) { x = av, av = av->link; }
-	else x = new ListNode<Type>;
-	return x;
-}
-template <class Type>
-void CircularList<Type>::RetNode(ListNode<Type>* x)
-{ //free the node pointed to by x
-	x->link = av;
-	av = x;
-}
-template <class Type>
-void CircularList<Type>::Erase() {
-	ListNode<Type>* temp = last->link;
-	last->link = av;
-	av = temp;
-	last = NULL;
-
-}
-//////////////Polynomial////////////////
+// ------------- Polynomial 클래스 -------------
 template <class Type>
 class Polynomial
 {
 private:
-	CircularList<Term<Type>> poly;
+    CircularList<Term<Type>> poly;
 public:
-	Polynomial(CircularList<Term<Type> >* terms) :poly(terms) { }
-	template <class Type>
-	friend ostream& operator<<(ostream&, Polynomial<Type>&);//polynomial 출력
-	/*
-	template <class Type>
-	friend istream& operator>>(istream&, Polynomial&);//polynomial 출력
-	*/
-	Polynomial<Type>* operator+(const Polynomial<Type>&)const;//polynomial ADD( )
-	Polynomial();//생성자 정의 필요-head node를 갖는 경우
-	void Add(Term<Type> e);
-	int GetData();
-	void Erase();
-	/*
-	T Evaluate(T&) const;//f(x)에 대하여 x에 대한 값을 구한다
-	Polynomial<T> Multiply(Polynomial<T>&); //f(x) * g(x)
-	Polynomial(const Polynomial<T>& p); //copy constructor
-	friend istream& operator>>(istream&, Polynomial<T>&);//polynomial 입력
-	friend ostream& operator<<(ostream&, Polynomial<T>&);//polynomial 출력
-	const Polynomial<T>& operator=(const Polynomial<T>&) const;
-	~Polynomial( );
-	Polynomial<T> operator-(const Polynomial<T>&)const;
-	*/
+    Polynomial() { }
+
+    Polynomial(const Polynomial<Type>& p) : poly(p.poly) { }
+
+    // Polynomial 덧셈 연산자 오버로딩
+    Polynomial<Type>* operator+(const Polynomial<Type>& b) const;
+
+    void Add(const Term<Type>& e) {
+        poly.Attach(e);
+    }
+
+    void Erase() {
+        poly.Erase();
+    }
+
+    void GetData();
+
+    // Friend operator<< 구현
+    template <class T>
+    friend ostream& operator<<(ostream&, const Polynomial<T>&);
 };
+
+// operator+ 구현
 template <class Type>
-Polynomial<Type>::Polynomial()
+Polynomial<Type>* Polynomial<Type>::operator+(const Polynomial<Type>& b) const
 {
-	poly = *new CircularList<Term<Type>>;
-}
-template <class Type>
-int Polynomial<Type>::GetData() {
-	int i, degree;
-	float coef;
-	int expo;
-	int maxExp = 999;
+    Polynomial<Type>* c = new Polynomial<Type>();
+    CircularListIterator<Term<Type>> Aiter(this->poly);
+    CircularListIterator<Term<Type>> Biter(b.poly);
 
-	do {
-		Term<float> m;
-		i = rand() % 10;
-		if (i == 0)
-			continue;
-		coef = (float)i / 10.0;
-		expo = rand() % 9;
-		if (expo >= maxExp)
-			continue;
-		maxExp = expo;
-		m.NewTerm(coef, expo);
-		poly.Attach(m);
-	} while (maxExp > 0);
-	return 0;
+    Term<Type>* p = Aiter.First();
+    Term<Type>* q = Biter.First();
+
+    while (p != nullptr && q != nullptr) {
+        if (p->exp > q->exp) {
+            c->Add(*p);
+            p = Aiter.Next();
+        }
+        else if (p->exp < q->exp) {
+            c->Add(*q);
+            q = Biter.Next();
+        }
+        else { // 지수가 동일한 경우
+            double sumCoef = p->coef + q->coef;
+            if (sumCoef != 0) {
+                Term<Type> temp;
+                temp.NewTerm(sumCoef, p->exp);
+                c->Add(temp);
+            }
+            p = Aiter.Next();
+            q = Biter.Next();
+        }
+    }
+
+    // 남아있는 항들 추가
+    while (p != nullptr) {
+        c->Add(*p);
+        p = Aiter.Next();
+    }
+
+    while (q != nullptr) {
+        c->Add(*q);
+        q = Biter.Next();
+    }
+
+    return c;
 }
 
+// operator<< 구현
 template <class Type>
-void Polynomial<Type>::Add(Term<Type> e)
+ostream& operator<<(ostream& os, const Polynomial<Type>& p)
 {
-	poly.Attach(e);
+    os << p.poly;
+    return os;
 }
+
+// Polynomial::GetData 구현
 template <class Type>
-void Polynomial<Type>::Erase() {
-	poly.Erase();
-}
-
-template <class Type>
-ostream& operator<<(ostream& os, Polynomial<Type>& p)
+void Polynomial<Type>::GetData()
 {
-	os << p.poly;
-	return os;
+    // 다항식 항의 개수를 랜덤하게 생성 (1~6개)
+    int numTerms = rand() % 6 + 1; // 1~6 terms
+    for(int i=0; i<numTerms; ++i){
+        double coef = ((double)(rand() % 1801) / 100.0) - 9.0; // -9.0 ~ +9.0
+        int exp = rand() % 6; // 0~5
+        Term<Type> m;
+        m.NewTerm(coef, exp);
+        poly.Attach(m);
+    }
 }
 
-char compare(int a, int b)
-{
-	if (a == b) return '=';
-	if (a < b) return '<';
-	return '>';
-}
-/*
-CircularListIterator<Type> li(l);
-if (!li.NotNull()) return os;
-os << *li.First();
-while (li.NextNotNull())
-os << " + " << *li.Next();
-*/
-template <class Type>
-Polynomial<Type>* Polynomial<Type>::operator+(const Polynomial<Type>& b)const
-{
-	Term<Type>* p, * q, * temp;
-	CircularListIterator<Term<Type>> Aiter(poly);
-	CircularListIterator<Term<Type>> Biter(b.poly);
-	Polynomial<Type>* c = new Polynomial<Type>;
-
-	p = Aiter.First();
-	q = Biter.First();
-	float x = 0.0;
-	while (Aiter.NextNotNull() && Biter.NextNotNull()) {
-		Term<float> m;
-		switch (compare(p->exp, q->exp)) {
-		case '=':
-			x = p->coef + q->coef;
-			m.NewTerm(x, q->exp);
-			if (x) c->poly.Attach(m);
-			p = Aiter.Next();
-			q = Biter.Next();
-			break;
-		case '<':
-			m.NewTerm(q->coef, q->exp);
-			c->poly.Attach(m);
-			q = Biter.Next();
-			break;
-		case '>':
-			m.NewTerm(p->coef, p->exp);
-			c->poly.Attach(m);
-			p = Aiter.Next();
-		}
-	}
-	while (Aiter.NextNotNull()) {
-		Term<float> m;
-		m.NewTerm(p->coef, p->exp);
-		c->poly.Attach(m);
-		p = Aiter.Next();
-	}
-	while (Biter.NextNotNull()) {
-		Term<float> m;
-		m.NewTerm(q->coef, q->exp);
-		c->poly.Attach(m);
-		q = Biter.Next();
-	}
-	return c;
-}
-//adding two polynomials as circular lists with head nodes=> 수정하는 것을 실습
-
+// ------------- main 함수 구현 -------------
 int main()
 {
-	srand(time(NULL));
+    srand(time(NULL));
 
-	Polynomial<float> p, q, r, * s, * t;
-	char select;
-	Term<float> e;
-	cout << endl << "Select command: a: 다항식 입력, b: p+q, c: (p+q)+r, q: exit" << endl;
-	cin >> select;
-	while (select != 'q')
-	{
-		switch (select)
-		{
-		case 'a':
-			p.GetData();
-			q.GetData();
-			r.GetData();
-			cout << "다항식 p, q, r 입력 결과::";
-			cout << p;
-			cout << q;
-			cout << r;
-			break;
-		case 'b': //a+b
-			s = p + q;
-			cout << "a = p + q 실행결과::";
-			cout << p;
-			cout << q;
-			cout << *s;
-			cout << "다항식 p, q를 삭제";
-			p.Erase(); q.Erase();
-			break;
-		case 'c':
-			t = *s + r;
-			cout << "t = s + r 실행결과::";
-			cout << *s;
-			cout << r;
-			cout << *t;
-			cout << "다항식 s, r를 삭제";
-			s->Erase(); r.Erase();
-			break;
-		default:
-			cout << "WRONG INPUT  " << endl;
-			cout << "Re-Enter" << endl;
-		}
-		cout << endl << "Select command: a: 다항식 입력, b: p+q, c: (p+q)+r, q: exit" << endl;
-		cin >> select;
-	}
-	system("pause");
-	return 0;
+    Polynomial<float> p, q, r;
+    Polynomial<float>* s = nullptr, * t = nullptr;
+    char select;
+    Term<float> e;
+    cout << endl << "Select command: a: 다항식 입력, b: p+q, c: (p+q)+r, q: exit" << endl;
+    cin >> select;
+    while (select != 'q')
+    {
+        switch (select)
+        {
+        case 'a':
+            p.GetData();
+            q.GetData();
+            r.GetData();
+            cout << "다항식 p, q, r 입력 결과::" << endl;
+            cout << "p(x) = " << p << endl;
+            cout << "q(x) = " << q << endl;
+            cout << "r(x) = " << r << endl;
+            break;
+        case 'b': // p + q
+            s = p + q;
+            cout << "a = p + q 실행결과::" << endl;
+            cout << "p(x) = " << p << endl;
+            cout << "q(x) = " << q << endl;
+            cout << "s(x) = " << *s << endl;
+            cout << "다항식 p, q를 삭제" << endl;
+            p.Erase(); q.Erase();
+            break;
+        case 'c': // s + r
+            if(s == nullptr){
+                cout << "s가 아직 생성되지 않았습니다. 먼저 p + q를 수행하세요." << endl;
+                break;
+            }
+            t = (*s) + r;
+            cout << "t = s + r 실행결과::" << endl;
+            cout << "s(x) = " << *s << endl;
+            cout << "r(x) = " << r << endl;
+            cout << "t(x) = " << *t << endl;
+            cout << "다항식 s, r를 삭제" << endl;
+            s->Erase(); 
+            r.Erase();
+            delete s; // 메모리 해제
+            s = nullptr;
+            break;
+        default:
+            cout << "WRONG INPUT  " << endl;
+            cout << "Re-Enter" << endl;
+        }
+        cout << endl << "Select command: a: 다항식 입력, b: p+q, c: (p+q)+r, q: exit" << endl;
+        cin >> select;
+    }
+    return 0;
 }
