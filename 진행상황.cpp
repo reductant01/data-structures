@@ -1,25 +1,23 @@
 #include <iostream>
 #include <memory>
 #include <exception>  // 예외 처리를 위한 헤더
-#include <string>     // string 사용을 위해 추가
+#include <string>
 
 using namespace std;
 
-//--- 실행시 예외: 스택이 비어 있음 ---//
-class EmptyStackException : public std::exception {
+//--- 실행시 예외: 큐가 비어 있음 ---//
+class EmptyQueueException : public std::exception {
 public:
-    EmptyStackException() {}
     const char* what() const noexcept override {
-        return "빈 Stack입니다.";
+        return "Queue is empty.";
     }
 };
 
-//--- 실행시 예외: 스택이 가득 참 ---//
-class OverflowStackException : public std::exception {
+//--- 실행시 예외: 큐가 가득 참 ---//
+class OverflowQueueException : public std::exception {
 public:
-    OverflowStackException() {}
     const char* what() const noexcept override {
-        return "Stack이 가득 찼습니다.";
+        return "Queue is full.";
     }
 };
 
@@ -40,141 +38,166 @@ ostream& operator<<(ostream& os, const Point& p) {
     return os;
 }
 
-//--- Stack 템플릿 클래스 ---//
+//--- Queue 템플릿 클래스 ---//
 template <class T>
-class Stack {
+class Queue
+{
 public:
-    Stack(int stackCapacity = 4);
-    ~Stack() { delete[] stack; }
+    Queue(int queueCapacity = 10);
+    ~Queue() { delete[] queue; }
+    T& Front();
+    T& Rear();
+    void Push(T const& x);
+    void Pop();
     bool IsFull() const;
     bool IsEmpty() const;
-    T& Peek() const; // 예외 - 빈 스택
-    void Push(const T& item); // 예외 - full 스택
-    T Pop(); // 예외 - 빈 스택
-    void Dump() const; // 예외 - 빈 스택
+    void Dump() const;
 private:
-    T* stack;
-    int top;
+    T* queue;
+    int front;
+    int rear;
     int capacity;
 };
 
-// Stack 클래스의 생성자 구현
+// Queue 클래스의 생성자 구현
 template <class T>
-Stack<T>::Stack(int stackCapacity) {
-    if (stackCapacity <= 0)
-        throw OverflowStackException(); // 용량이 0 이하이면 예외
-    capacity = stackCapacity;
-    stack = new T[capacity];
-    top = -1; // 빈 스택을 나타내기 위해 -1로 초기화
+Queue<T>::Queue(int queueCapacity)
+{
+    if (queueCapacity <= 0)
+        throw OverflowQueueException();
+    capacity = queueCapacity;
+    queue = new T[capacity];
+    front = rear = 0;
 }
 
-// IsFull() 메서드: 스택이 가득 찼는지 확인
+// Front() 메서드: 큐의 첫 번째 요소를 반환
 template <class T>
-bool Stack<T>::IsFull() const {
-    return top >= capacity - 1;
-}
-
-// IsEmpty() 메서드: 스택이 비어있는지 확인
-template <class T>
-bool Stack<T>::IsEmpty() const {
-    return top == -1;
-}
-
-// Peek() 메서드: 스택의 맨 위 요소를 반환
-template <class T>
-T& Stack<T>::Peek() const {
+T& Queue<T>::Front()
+{
     if (IsEmpty())
-        throw EmptyStackException();
-    return const_cast<T&>(stack[top]); // const 메서드에서 참조 반환을 위해 const_cast 사용
+        throw EmptyQueueException();
+    return queue[(front + 1) % capacity];
 }
 
-// Push() 메서드: 스택에 요소 추가
+// Rear() 메서드: 큐의 마지막 요소를 반환
 template <class T>
-void Stack<T>::Push(const T& item) {
+T& Queue<T>::Rear()
+{
+    if (IsEmpty())
+        throw EmptyQueueException();
+    return queue[rear];
+}
+
+// Push() 메서드: 큐에 요소 추가
+template <class T>
+void Queue<T>::Push(T const& x)
+{
     if (IsFull())
-        throw OverflowStackException();
-    stack[++top] = item;
+        throw OverflowQueueException();
+    rear = (rear + 1) % capacity;
+    queue[rear] = x;
 }
 
-// Pop() 메서드: 스택에서 요소 삭제 및 반환
+// Pop() 메서드: 큐에서 요소 삭제
 template <class T>
-T Stack<T>::Pop() {
+void Queue<T>::Pop()
+{
     if (IsEmpty())
-        throw EmptyStackException();
-    return stack[top--];
+        throw EmptyQueueException();
+    front = (front + 1) % capacity;
 }
 
-// Dump() 메서드: 스택의 모든 요소를 출력
+// IsFull() 메서드: 큐가 가득 찼는지 확인
 template <class T>
-void Stack<T>::Dump() const {
-    if (IsEmpty())
-        throw EmptyStackException();
-    cout << "Stack elements: ";
-    for(int i = top; i >= 0; --i)
-        cout << stack[i] << " ";
+bool Queue<T>::IsFull() const
+{
+    return ((rear + 1) % capacity) == front;
+}
+
+// IsEmpty() 메서드: 큐가 비어있는지 확인
+template <class T>
+bool Queue<T>::IsEmpty() const
+{
+    return front == rear;
+}
+
+// Dump() 메서드: 큐의 모든 요소를 출력
+template <class T>
+void Queue<T>::Dump() const
+{
+    if (IsEmpty()) {
+        cout << "Queue is empty." << endl;
+        return;
+    }
+    int i = (front + 1) % capacity;
+    cout << "Queue elements: ";
+    while (i != (rear + 1) % capacity) {
+        cout << queue[i] << " ";
+        i = (i + 1) % capacity;
+    }
     cout << endl;
 }
 
-// Menu 열거형 정의
-enum Menu { push, pop, peek, dump, Exit };
+// 메뉴 열거형 정의
+enum Menu { push, pop, frontQ, peek, dump, Exit };
 
 // 메뉴를 선택하는 함수
 Menu SelectMenu() {
-    int choice;
-    cout << "0: Push, 1: Pop, 2: Peek, 3: Dump, 4: Exit\n";
-    cout << "선택번호: ";
-    cin >> choice;
-    return static_cast<Menu>(choice);
+    int m;
+    cout << "0.Push, 1.Pop, 2.Front, 3.Peek, 4.Dump, 5.Exit 선택: ";
+    cin >> m;
+    return static_cast<Menu>(m);
 }
 
 int main() {
-    Stack<int> stack(4);  // 용량이 4인 정수 스택 생성
-    Menu menu;
+    try {
+        Queue<int> queue(5);  // 용량이 5인 정수 Queue 생성
+        Menu menu;
 
-    while (true) {
-        try {
+        while (true) {
             menu = SelectMenu();
             switch (menu) {
                 case push: {
-                    int value;
-                    cout << "Push할 값: ";
-                    cin >> value;
-                    stack.Push(value);
-                    cout << value << "을(를) 스택에 추가했습니다.\n";
+                    int x;
+                    cout << "Push할 정수 입력: ";
+                    cin >> x;
+                    queue.Push(x);
+                    cout << x << "을(를) 큐에 추가했습니다." << endl;
                     break;
                 }
                 case pop: {
-                    int popped = stack.Pop();
-                    cout << "Pop한 값 = " << popped << endl;
+                    queue.Pop();
+                    cout << "Pop 완료." << endl;
                     break;
                 }
-                case peek: {
-                    cout << "Peek of stack: " << stack.Peek() << endl;
+                case frontQ: {
+                    cout << "Front: " << queue.Front() << endl;
+                    break;
+                }
+                case peek: { // Rear 요소 출력
+                    cout << "Rear: " << queue.Rear() << endl;
                     break;
                 }
                 case dump: {
-                    stack.Dump();
+                    queue.Dump();
                     break;
                 }
-                case Exit: {
-                    cout << "프로그램을 종료합니다.\n";
+                case Exit:
+                    cout << "프로그램을 종료합니다." << endl;
                     return 0;
-                }
-                default: {
-                    cout << "잘못된 선택입니다. 다시 시도해주세요.\n";
-                    break;
-                }
+                default:
+                    cout << "잘못된 선택입니다. 다시 시도해주세요." << endl;
             }
         }
-        catch (const EmptyStackException& e) {
-            cout << "스택 empty 예외: " << e.what() << endl;
-        }
-        catch (const OverflowStackException& e) {
-            cout << "스택 overflow 예외: " << e.what() << endl;
-        }
-        catch (const exception& e) { // 기타 예외 처리
-            cout << "예외 발생: " << e.what() << endl;
-        }
+    }
+    catch (EmptyQueueException& e) {
+        cout << e.what() << endl;
+    }
+    catch (OverflowQueueException& e) {
+        cout << e.what() << endl;
+    }
+    catch (exception& e) { // 기타 예외 처리
+        cout << "예외 발생: " << e.what() << endl;
     }
 
     return 0;
